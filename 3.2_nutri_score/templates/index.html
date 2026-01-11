@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Calculateur Nutri-Score</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg1:#667eea; --bg2:#764ba2;
+      --a:#038141; --b:#85bb2f; --c:#fecb02; --d:#ee8100; --e:#e63e11;
+      --card:#ffffff; --muted:#6b7280; --border:#e5e7eb;
+    }
+    *{box-sizing:border-box} body{
+      margin:0; font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;
+      background: linear-gradient(135deg,var(--bg1),var(--bg2));
+      min-height:100svh; display:flex; align-items:center; justify-content:center; padding:24px;
+    }
+    .app{
+      max-width:960px; width:100%; background:var(--card); border-radius:20px;
+      box-shadow:0 24px 80px rgba(0,0,0,.25); overflow:hidden;
+      outline:1px solid rgba(255,255,255,.08);
+    }
+    header{
+      padding:28px 32px; color:#fff;
+      background: linear-gradient(135deg,var(--bg1),var(--bg2));
+    }
+    header h1{margin:0 0 6px; font-size:28px; font-weight:800}
+    header p{margin:0; opacity:.9}
+    .content{padding:28px 32px; background:#f8fafc}
+    .panel{background:#fff; border:1px solid var(--border); border-radius:16px; padding:20px; margin-bottom:20px}
+    .row{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+    @media (max-width:760px){ .row{grid-template-columns:1fr} }
+    label{display:block; font-weight:600; margin-bottom:6px; color:#111827}
+    .hint{font-weight:400; font-size:12px; color:var(--muted)}
+    input{
+      width:100%; padding:12px 14px; border:1.5px solid var(--border); border-radius:10px;
+      font-size:14px; background:#fff; transition:border .2s, box-shadow .2s;
+    }
+    input:focus{outline:none; border-color:#6366f1; box-shadow:0 0 0 4px rgba(99,102,241,.12)}
+    .cta{
+      width:100%; padding:14px 16px; border:0; border-radius:12px; cursor:pointer;
+      font-weight:700; font-size:16px; color:#fff;
+      background: linear-gradient(135deg,var(--bg1),var(--bg2));
+      box-shadow:0 12px 28px rgba(102,126,234,.35); transition:transform .15s, box-shadow .15s;
+    }
+    .cta:hover{transform: translateY(-1px); box-shadow:0 16px 36px rgba(102,126,234,.45)}
+    .cta:active{transform:none}
+    .results{display:none}
+    .results.active{display:block; animation:fade .4s ease-out}
+    @keyframes fade{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none}}
+
+    .scorecard{ text-align:center; padding:20px; background:#f1f5f9; border-radius:16px; margin-bottom:16px }
+    .letters{ display:inline-flex; gap:6px; margin:12px 0 }
+    .letter{
+      width:64px; height:64px; border-radius:12px; display:grid; place-items:center;
+      color:#fff; font-weight:900; font-size:24px; opacity:.35; transition:transform .2s, opacity .2s, box-shadow .2s;
+    }
+    .letter.active{ opacity:1; transform:scale(1.12); box-shadow:0 10px 26px rgba(0,0,0,.22) }
+    .a{ background:var(--a)} .b{background:var(--b)} .c{background:var(--c)}
+    .d{ background:var(--d)} .e{background:var(--e)}
+    .value{ font-size:36px; font-weight:800; color:#111827; margin:8px 0 }
+    .desc{ color:var(--muted) }
+
+    .details{ background:#fff; border:1px solid var(--border); border-radius:16px; padding:16px }
+    .rowd{ display:flex; justify-content:space-between; padding:10px 6px; border-bottom:1px dashed #eef2f7 }
+    .rowd:last-child{ border-bottom:0 }
+    .neg{ color:var(--e); font-weight:700 } .pos{ color:var(--a); font-weight:700 }
+    .note{ background:#e8f1ff; border-left:4px solid #2563eb; padding:12px; border-radius:10px; color:#1f2937; font-size:13px; margin-top:12px }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>🥗 Calculateur Nutri-Score</h1>
+      <p>Algorithme côté serveur (Python). Cette page est une interface HTML.</p>
+    </header>
+
+    <div class="content">
+      <div class="panel">
+        <h3 style="margin:0 0 12px;">Saisir les valeurs (pour 100g / 100ml)</h3>
+        <div class="row">
+          <div>
+            <label>Énergie <span class="hint">(kJ)</span></label>
+            <input id="energie_kj" type="number" step="0.1" placeholder="ex. 1500" />
+          </div>
+          <div>
+            <label>Acides gras saturés <span class="hint">(g)</span></label>
+            <input id="acides_gras" type="number" step="0.1" placeholder="ex. 3.5" />
+          </div>
+          <div>
+            <label>Sucres <span class="hint">(g)</span></label>
+            <input id="sucres" type="number" step="0.1" placeholder="ex. 8.2" />
+          </div>
+          <div>
+            <label>Sodium <span class="hint">(mg)</span></label>
+            <input id="sodium" type="number" step="0.1" placeholder="ex. 380" />
+          </div>
+          <div>
+            <label>Protéines <span class="hint">(g)</span></label>
+            <input id="proteines" type="number" step="0.1" placeholder="ex. 5.0" />
+          </div>
+          <div>
+            <label>Fibres <span class="hint">(g)</span></label>
+            <input id="fibres" type="number" step="0.1" placeholder="ex. 3.2" />
+          </div>
+          <div>
+            <label>Fruits / Légumes / Noix <span class="hint">(%)</span></label>
+            <input id="fruits_legumes" type="number" step="0.1" placeholder="ex. 60" />
+          </div>
+        </div>
+        <button class="cta" id="btnCalc">✨ Calculer le Nutri-Score</button>
+      </div>
+
+      <div class="results" id="results">
+        <div class="scorecard">
+          <div class="letters">
+            <div class="letter a" id="L-A">A</div>
+            <div class="letter b" id="L-B">B</div>
+            <div class="letter c" id="L-C">C</div>
+            <div class="letter d" id="L-D">D</div>
+            <div class="letter e" id="L-E">E</div>
+          </div>
+          <div class="value" id="score">Score: 0</div>
+          <div class="desc" id="explain"></div>
+        </div>
+
+        <div class="details">
+          <div class="rowd">
+            <div>Composante négative</div><div class="neg" id="neg">0 points</div>
+          </div>
+          <div class="rowd">
+            <div>Composante positive</div><div class="pos" id="pos">0 points</div>
+          </div>
+          <div class="rowd">
+            <div>Points protéines</div><div id="p_prot">0</div>
+          </div>
+          <div class="rowd">
+            <div>Points fibres</div><div id="p_fib">0</div>
+          </div>
+          <div class="rowd">
+            <div>Points fruits/légumes/noix</div><div id="p_fv">0</div>
+          </div>
+          <div class="rowd">
+            <div>Protéines comptées ?</div><div id="prot_use">Oui</div>
+          </div>
+          <div class="note" id="note"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 小工具：选择器
+    const $ = s => document.querySelector(s);
+
+    // 根据等级高亮 A~E
+    function highlight(grade){
+      ['A','B','C','D','E'].forEach(g=>{
+        const el = $('#L-'+g);
+        if (g === grade) el.classList.add('active');
+        else el.classList.remove('active');
+      });
+      const map = {
+        A:'Excellente qualité nutritionnelle',
+        B:'Bonne qualité nutritionnelle',
+        C:'Qualité moyenne',
+        D:'Qualité médiocre',
+        E:'Qualité faible — à limiter'
+      };
+      $('#explain').textContent = map[grade] || '';
+    }
+
+    async function calc(){
+      const payload = {
+        energie_kj: parseFloat($('#energie_kj').value || 0),
+        acides_gras: parseFloat($('#acides_gras').value || 0),
+        sucres: parseFloat($('#sucres').value || 0),
+        sodium: parseFloat($('#sodium').value || 0),
+        proteines: parseFloat($('#proteines').value || 0),
+        fibres: parseFloat($('#fibres').value || 0),
+        fruits_legumes: parseFloat($('#fruits_legumes').value || 0),
+      };
+
+      // 基础校验
+      if (!payload.energie_kj){
+        alert("Veuillez saisir l'énergie (kJ).");
+        return;
+      }
+
+      // 调用 Python 后端 /calcul
+      const res = await fetch('/calcul', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.error){ alert(data.error); return; }
+
+      // 展示结果
+      $('#results').classList.add('active');
+      $('#score').textContent = `Score: ${data.score}`;
+      highlight(data.grade);
+
+      const d = data.details || {};
+      const posSum = (d.proteines || 0) + (d.fibres || 0) + (d.fruits_legumes || 0);
+      const posShown = d.proteines_comptes ? posSum : (posSum - (d.proteines || 0));
+
+      $('#neg').textContent = `${d.negatif ?? 0} points`;
+      $('#pos').textContent = `${posShown} points`;
+      $('#p_prot').textContent = d.proteines ?? 0;
+      $('#p_fib').textContent = d.fibres ?? 0;
+      $('#p_fv').textContent = d.fruits_legumes ?? 0;
+      $('#prot_use').textContent = d.proteines_comptes ? 'Oui' : 'Non';
+
+      let note = `Formule: Score = Négatif - Positif = ${d.negatif ?? 0} - ${posShown} = ${data.score}`;
+      if (!d.proteines_comptes){
+        note += `<br><em>⚠️ Protéines non comptées car Négatif ≥ 11 et Fruits/Légumes < 80%.</em>`;
+      }
+      $('#note').innerHTML = note;
+
+      // 滚动到结果
+      $('#results').scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+
+    // 事件绑定
+    $('#btnCalc').addEventListener('click', calc);
+    document.addEventListener('keydown', e=>{
+      if (e.key === 'Enter') calc();
+    });
+  </script>
+</body>
+</html>
